@@ -1,0 +1,88 @@
+package main
+
+import (
+	"fmt"
+	"mydiet/internal/views"
+	"os"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+const (
+	_ = iota
+	SPINNERVIEW
+	CARTVIEW
+)
+
+type model struct {
+	activeView int
+	Views      allViews
+}
+
+type allViews struct {
+	Cart    views.CartView
+	Spinner views.SpinnerView
+}
+
+func (m *model) Init() tea.Cmd {
+	switch m.activeView {
+	case SPINNERVIEW:
+		return m.Views.Spinner.Init()
+	case CARTVIEW:
+		return m.Views.Cart.Init()
+	default:
+		return nil
+	}
+}
+
+// what the application shows
+func (m *model) View() string {
+	// The header
+	switch m.activeView {
+	case SPINNERVIEW:
+		return m.Views.Spinner.View()
+	default:
+		return m.Views.Cart.View()
+	}
+}
+
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case views.UpdateViewMessage:
+		um := int(msg)
+		fmt.Println(um)
+		m.activeView = um
+		return m, m.Init()
+	}
+
+	switch m.activeView {
+	case SPINNERVIEW:
+		var cmd tea.Cmd
+		m.Views.Spinner, cmd = m.Views.Spinner.Update(msg)
+		return m, cmd
+	default:
+		var cmd tea.Cmd
+		m.Views.Cart, cmd = m.Views.Cart.Update(msg)
+		return m, cmd
+
+	}
+
+}
+func initialModel() *model {
+	m := &model{
+		activeView: 1,
+		Views: allViews{
+			Cart:    views.NewCartView(),
+			Spinner: views.NewSpinnerView(),
+		},
+	}
+	m.Views.Spinner.ResetSpinner()
+	return m
+}
+func main() {
+	p := tea.NewProgram(initialModel())
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Alas, there's been an error: %v", err)
+		os.Exit(1)
+	}
+}
