@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"mydiet/internal/logger"
 	"mydiet/internal/views"
 	"os"
 
@@ -50,7 +51,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case views.UpdateViewMessage:
 		um := int(msg)
-		fmt.Println(um)
 		m.activeView = um
 		return m, m.Init()
 	}
@@ -80,6 +80,8 @@ func initialModel() *model {
 	return m
 }
 func main() {
+	logger.Log = logger.NewLogger()
+	defer logger.LogFile.Close()
 	p := tea.NewProgram(initialModel())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
