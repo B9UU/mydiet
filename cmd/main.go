@@ -13,6 +13,7 @@ const (
 	_ = iota
 	SPINNERVIEW
 	CARTVIEW
+	DETAILSVIEW
 )
 
 type model struct {
@@ -21,7 +22,7 @@ type model struct {
 }
 
 type allViews struct {
-	Cart    views.CartView
+	Cart    views.Search
 	Spinner views.SpinnerView
 }
 
@@ -48,24 +49,22 @@ func (m *model) View() string {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case views.UpdateViewMessage:
 		um := int(msg)
 		m.activeView = um
 		return m, m.Init()
 	}
-
 	switch m.activeView {
 	case SPINNERVIEW:
-		var cmd tea.Cmd
 		m.Views.Spinner, cmd = m.Views.Spinner.Update(msg)
 		return m, cmd
-	default:
-		var cmd tea.Cmd
+	case CARTVIEW:
 		m.Views.Cart, cmd = m.Views.Cart.Update(msg)
-		return m, cmd
 
 	}
+	return m, cmd
 
 }
 func initialModel() *model {
@@ -82,6 +81,12 @@ func initialModel() *model {
 func main() {
 	logger.Log = logger.NewLogger()
 	defer logger.LogFile.Close()
+	f, err := tea.LogToFile("debug.log", "help")
+	if err != nil {
+		fmt.Println("Couldn't open a file for logging:", err)
+		os.Exit(1)
+	}
+	defer f.Close() // nolint:errcheck
 	p := tea.NewProgram(initialModel())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)

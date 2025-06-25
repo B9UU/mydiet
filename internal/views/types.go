@@ -1,5 +1,7 @@
 package views
 
+type UpdateViewMessage int
+
 type FailedRequest struct {
 	err error
 }
