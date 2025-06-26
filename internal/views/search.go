@@ -62,7 +62,7 @@ func (m Search) Update(msg tea.Msg) (Search, tea.Cmd) {
 		// 	m.listView.Focus()
 
 		case tea.KeyEsc.String():
-			m.textInput.Blur()
+			// m.textInput.Blur()
 			m.listView.Focus()
 			return m, cmd
 		}
@@ -79,6 +79,7 @@ func (m Search) Update(msg tea.Msg) (Search, tea.Cmd) {
 				m.lastRequest = time.Now()
 			}
 		}
+		m.textInput.PromptStyle.GetBorder()
 
 	case SuccessRequest:
 

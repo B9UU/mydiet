@@ -24,6 +24,7 @@ type model struct {
 type allViews struct {
 	Cart    views.Search
 	Spinner views.SpinnerView
+	Detail  views.Details
 }
 
 func (m *model) Init() tea.Cmd {
@@ -40,12 +41,13 @@ func (m *model) Init() tea.Cmd {
 // what the application shows
 func (m *model) View() string {
 	// The header
-	switch m.activeView {
-	case SPINNERVIEW:
-		return m.Views.Spinner.View()
-	default:
-		return m.Views.Cart.View()
-	}
+	// switch m.activeView {
+	// case SPINNERVIEW:
+	// 	return m.Views.Spinner.View()
+	// default:
+	// 	return m.Views.Cart.View()
+	// }
+	return m.Views.Detail.View()
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -56,14 +58,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.activeView = um
 		return m, m.Init()
 	}
-	switch m.activeView {
-	case SPINNERVIEW:
-		m.Views.Spinner, cmd = m.Views.Spinner.Update(msg)
-		return m, cmd
-	case CARTVIEW:
-		m.Views.Cart, cmd = m.Views.Cart.Update(msg)
+	// switch m.activeView {
+	// case SPINNERVIEW:
+	// 	m.Views.Spinner, cmd = m.Views.Spinner.Update(msg)
+	// 	return m, cmd
+	// case CARTVIEW:
+	// 	m.Views.Cart, cmd = m.Views.Cart.Update(msg)
+	//
+	// }
 
-	}
+	m.Views.Detail, cmd = m.Views.Detail.Update(msg)
 	return m, cmd
 
 }
@@ -73,6 +77,7 @@ func initialModel() *model {
 		Views: allViews{
 			Cart:    views.NewCartView(),
 			Spinner: views.NewSpinnerView(),
+			Detail:  views.NewDetailView(),
 		},
 	}
 	m.Views.Spinner.ResetSpinner()
