@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"mydiet/internal/logger"
+	"mydiet/internal/models/textinput"
 	"mydiet/internal/views"
 	"os"
 
@@ -27,49 +28,21 @@ type allViews struct {
 	Detail  views.Details
 }
 
-func (m *model) Init() tea.Cmd {
-	switch m.activeView {
-	case SPINNERVIEW:
-		return m.Views.Spinner.Init()
-	case CARTVIEW:
-		return m.Views.Cart.Init()
-	default:
-		return nil
-	}
+func (m model) Init() tea.Cmd {
+	return nil
 }
 
 // what the application shows
-func (m *model) View() string {
+func (m model) View() string {
 	// The header
-	// switch m.activeView {
-	// case SPINNERVIEW:
-	// 	return m.Views.Spinner.View()
-	// default:
-	// 	return m.Views.Cart.View()
-	// }
+
 	return m.Views.Detail.View()
 }
 
-func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	switch msg := msg.(type) {
-	case views.UpdateViewMessage:
-		um := int(msg)
-		m.activeView = um
-		return m, m.Init()
-	}
-	// switch m.activeView {
-	// case SPINNERVIEW:
-	// 	m.Views.Spinner, cmd = m.Views.Spinner.Update(msg)
-	// 	return m, cmd
-	// case CARTVIEW:
-	// 	m.Views.Cart, cmd = m.Views.Cart.Update(msg)
-	//
-	// }
-
 	m.Views.Detail, cmd = m.Views.Detail.Update(msg)
 	return m, cmd
-
 }
 func initialModel() *model {
 	m := &model{
@@ -77,9 +50,10 @@ func initialModel() *model {
 		Views: allViews{
 			Cart:    views.NewCartView(),
 			Spinner: views.NewSpinnerView(),
-			Detail:  views.NewDetailView(),
+			Detail:  views.New(),
 		},
 	}
+	textinput.New()
 	m.Views.Spinner.ResetSpinner()
 	return m
 }
