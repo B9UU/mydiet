@@ -9,20 +9,28 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type Meal int
+type MealType string
 
 const (
-	Breakfast Meal = iota
-	Lunch
-	Dinner
-	Snacks
-	MealCount
+	Breakfast MealType = "Breakfast"
+	Lunch     MealType = "Lunch"
+	Dinner    MealType = "Dinner"
+	Snack     MealType = "Snack"
 )
 
+var AllMeals = []MealType{Breakfast, Lunch, Dinner, Snack}
+
+type MealData struct {
+	Id       int
+	Name     string
+	Calories int
+	Carbs    int
+	Protein  int
+}
 type Details struct {
 	style  lipgloss.Style
-	tables [MealCount]tablelisting.Model
-	active Meal
+	tables map[MealType]tablelisting.Model
+	active MealType
 	help   help.Model
 	keys   keyMap
 }
@@ -31,12 +39,12 @@ func (m Details) View() string {
 
 	upper := lipgloss.JoinHorizontal(
 		lipgloss.Center,
-		m.tables[0].View(),
-		m.tables[1].View())
+		m.tables[Breakfast].View(),
+		m.tables[Lunch].View())
 	lower := lipgloss.JoinHorizontal(
 		lipgloss.Center,
-		m.tables[2].View(),
-		m.tables[3].View())
+		m.tables[Dinner].View(),
+		m.tables[Snack].View())
 
 	mainBox := m.style.Render(
 		lipgloss.JoinVertical(
@@ -59,6 +67,14 @@ func (m Details) Update(msg tea.Msg) (Details, tea.Cmd) {
 			// return m, tea.Println("help")
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
+		case key.Matches(msg, m.keys.First):
+			m = m.SetActive(Breakfast)
+		case key.Matches(msg, m.keys.Second):
+			m = m.SetActive(Lunch)
+		case key.Matches(msg, m.keys.Third):
+			m = m.SetActive(Dinner)
+		case key.Matches(msg, m.keys.Fourth):
+			m = m.SetActive(Snack)
 		}
 
 	}
@@ -71,11 +87,9 @@ func (m Details) Init() tea.Cmd {
 
 // New creates a new model with default settings.
 func New() Details {
-	var tables [MealCount]tablelisting.Model
-
-	for i := Meal(0); i < MealCount; i++ {
-		meal := Meal(i)
-		tables[i] = tablelisting.New(meal.String())
+	var tables = make(map[MealType]tablelisting.Model)
+	for _, k := range AllMeals {
+		tables[k] = tablelisting.New(string(k))
 	}
 	m := Details{
 		style: lipgloss.NewStyle().
@@ -86,14 +100,20 @@ func New() Details {
 		help:   help.New(),
 		keys:   keys,
 	}
-	return m.SetActive(0)
+	return m.SetActive(Breakfast)
 
 }
-func (m Details) SetActive(meal Meal) Details {
-	for i := Meal(0); i < MealCount; i++ {
-		m.tables[i].Table.Blur()
+
+func (m Details) SetActive(meal MealType) Details {
+	for _, i := range AllMeals {
+		c := m.tables[i]
+		c.Table.Blur()
+		m.tables[i] = c
 	}
-	m.tables[meal].Table.Focus()
+	t := m.tables[meal]
+	t.Table.Focus()
+	m.tables[meal] = t
+
 	m.active = meal
 	return m
 }
@@ -102,12 +122,21 @@ type keyMap struct {
 	tablelisting.KeyMap
 	Help key.Binding
 	Quit key.Binding
+
+	First  key.Binding
+	Second key.Binding
+	Third  key.Binding
+	Fourth key.Binding
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	dd := k.KeyMap.FullHelp()
 	dd[2] = append(
 		dd[2],
+		k.First,
+		k.Second,
+		k.Third,
+		k.Fourth,
 		k.Help,
 		k.Quit,
 	)
@@ -125,6 +154,22 @@ func (k keyMap) ShortHelp() []key.Binding {
 var keys = keyMap{
 	KeyMap: tablelisting.Keys,
 
+	First: key.NewBinding(
+		key.WithKeys("1"),
+		key.WithHelp("?", "Help"),
+	),
+	Second: key.NewBinding(
+		key.WithKeys("2"),
+		key.WithHelp("?", "Help"),
+	),
+	Third: key.NewBinding(
+		key.WithKeys("3"),
+		key.WithHelp("?", "Help"),
+	),
+	Fourth: key.NewBinding(
+		key.WithKeys("4"),
+		key.WithHelp("?", "Help"),
+	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
 		key.WithHelp("?", "Help"),
@@ -133,19 +178,4 @@ var keys = keyMap{
 		key.WithKeys(tea.KeyCtrlC.String(), "q"),
 		key.WithHelp("Ctrl-c/q", "Quit"),
 	),
-}
-
-func (m Meal) String() string {
-	switch m {
-	case Breakfast:
-		return "Breakfast"
-	case Lunch:
-		return "Lunch"
-	case Dinner:
-		return "Dinner"
-	case Snacks:
-		return "Snacks"
-	default:
-		return "Unknown"
-	}
 }

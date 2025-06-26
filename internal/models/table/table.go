@@ -29,7 +29,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.Table.Blur()
 		case key.Matches(msg, m.keys.Enter):
 			return m, tea.Batch(
-				tea.Printf("Let's go to %s!", m.Table.SelectedRow()[1]),
+				tea.Printf("Let's go to %s!", m.Table.SelectedRow()[2]),
 			)
 		}
 	}
