@@ -1,6 +1,8 @@
 package tablelisting
 
 import (
+	"mydiet/internal/store"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,12 +15,15 @@ var baseStyle = lipgloss.NewStyle().
 
 type Model struct {
 	mealName string
+	mealData store.MealsData
 	style    lipgloss.Style
 	Table    table.Model
 	keys     KeyMap
 }
 
-func (m Model) Init() tea.Cmd { return nil }
+func (m Model) Init() tea.Cmd {
+	return nil
+}
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -65,10 +70,11 @@ func (m Model) View() string {
 
 // New creates a new model with default settings.
 func New(mealName string) Model {
+	meals := store.Meals[store.MealType(mealName)]
 	t := table.New(
 		table.WithColumns(columns),
-		table.WithRows(rows),
 		table.WithHeight(7),
+		table.WithRows(meals.TableRowsFor()),
 	)
 
 	s := table.DefaultStyles()
@@ -87,6 +93,7 @@ func New(mealName string) Model {
 		Table:    t,
 		keys:     Keys,
 		mealName: mealName,
+		mealData: meals,
 	}
 	return m
 }

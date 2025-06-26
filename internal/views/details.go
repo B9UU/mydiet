@@ -2,6 +2,7 @@ package views
 
 import (
 	tablelisting "mydiet/internal/models/table"
+	"mydiet/internal/store"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -9,28 +10,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type MealType string
+var AllMeals = []store.MealType{
+	store.Breakfast, store.Lunch, store.Dinner, store.Snack}
 
-const (
-	Breakfast MealType = "Breakfast"
-	Lunch     MealType = "Lunch"
-	Dinner    MealType = "Dinner"
-	Snack     MealType = "Snack"
-)
-
-var AllMeals = []MealType{Breakfast, Lunch, Dinner, Snack}
-
-type MealData struct {
-	Id       int
-	Name     string
-	Calories int
-	Carbs    int
-	Protein  int
-}
 type Details struct {
 	style  lipgloss.Style
-	tables map[MealType]tablelisting.Model
-	active MealType
+	tables map[store.MealType]tablelisting.Model
+	active store.MealType
 	help   help.Model
 	keys   keyMap
 }
@@ -39,12 +25,12 @@ func (m Details) View() string {
 
 	upper := lipgloss.JoinHorizontal(
 		lipgloss.Center,
-		m.tables[Breakfast].View(),
-		m.tables[Lunch].View())
+		m.tables[store.Breakfast].View(),
+		m.tables[store.Lunch].View())
 	lower := lipgloss.JoinHorizontal(
 		lipgloss.Center,
-		m.tables[Dinner].View(),
-		m.tables[Snack].View())
+		m.tables[store.Dinner].View(),
+		m.tables[store.Snack].View())
 
 	mainBox := m.style.Render(
 		lipgloss.JoinVertical(
@@ -68,13 +54,13 @@ func (m Details) Update(msg tea.Msg) (Details, tea.Cmd) {
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 		case key.Matches(msg, m.keys.First):
-			m = m.SetActive(Breakfast)
+			m = m.SetActive(store.Breakfast)
 		case key.Matches(msg, m.keys.Second):
-			m = m.SetActive(Lunch)
+			m = m.SetActive(store.Lunch)
 		case key.Matches(msg, m.keys.Third):
-			m = m.SetActive(Dinner)
+			m = m.SetActive(store.Dinner)
 		case key.Matches(msg, m.keys.Fourth):
-			m = m.SetActive(Snack)
+			m = m.SetActive(store.Snack)
 		}
 
 	}
@@ -87,7 +73,7 @@ func (m Details) Init() tea.Cmd {
 
 // New creates a new model with default settings.
 func New() Details {
-	var tables = make(map[MealType]tablelisting.Model)
+	var tables = make(map[store.MealType]tablelisting.Model)
 	for _, k := range AllMeals {
 		tables[k] = tablelisting.New(string(k))
 	}
@@ -100,11 +86,11 @@ func New() Details {
 		help:   help.New(),
 		keys:   keys,
 	}
-	return m.SetActive(Breakfast)
+	return m.SetActive(store.Breakfast)
 
 }
 
-func (m Details) SetActive(meal MealType) Details {
+func (m Details) SetActive(meal store.MealType) Details {
 	for _, i := range AllMeals {
 		c := m.tables[i]
 		c.Table.Blur()
