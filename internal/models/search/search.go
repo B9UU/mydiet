@@ -1,4 +1,4 @@
-package views
+package search
 
 import (
 	"context"
@@ -7,14 +7,14 @@ import (
 	"mydiet/internal/logger"
 	"mydiet/internal/models/input"
 	"mydiet/internal/models/list"
+	"mydiet/internal/types"
 	"net/http"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
-type Search struct {
+type Model struct {
 	selected     map[int]struct{}
 	spinnerIndex int
 	textInput    input.Model
@@ -22,47 +22,26 @@ type Search struct {
 	lastRequest  time.Time
 }
 
-func (m Search) View() string {
-	inputBox := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(m.getColor()).
-		Width(50).
-		Render(m.textInput.View())
+func (m Model) View() string {
 
-	mainBox := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("36")).
-		Width(55).
-		Align(lipgloss.Center).
-		Render(lipgloss.JoinVertical(lipgloss.Center, m.listView.View(), inputBox))
-
+	mainBox := m.mainBox()
 	mainBox += "\n" + m.textInput.GetHelp() + "\n"
 	return mainBox
 }
 
-func (m Search) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Search) Update(msg tea.Msg) (Search, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if msg.String() == tea.KeyCtrlC.String() {
 			return m, tea.Quit
 		}
-		// m.textInput.Used = true
 		switch msg.String() {
-
-		// case tea.KeyEnter.String():
-		// 	m.textInput.SetValue(m.textInput.CurrentSuggestion())
-		// 	m.textInput.CursorEnd()
-		// 	m.listView.Choices = m.textInput.MatchedSuggestions()
-		// 	m.textInput.Blur()
-		// 	m.listView.Focus()
-
 		case tea.KeyEsc.String():
-			// m.textInput.Blur()
 			m.listView.Focus()
 			return m, cmd
 		}
@@ -79,23 +58,22 @@ func (m Search) Update(msg tea.Msg) (Search, tea.Cmd) {
 				m.lastRequest = time.Now()
 			}
 		}
-		m.textInput.PromptStyle.GetBorder()
 
-	case SuccessRequest:
+	case types.SuccessRequest:
 
-		logger.Log.Infof("got the succes message: %d", len(msg.suggetions))
 		newSug := append(
 			m.textInput.AvailableSuggestions(),
-			msg.suggetions...)
+			msg.Suggetions...)
 		m.textInput.SetSuggestions(newSug)
 
 		m.listView.Choices = m.textInput.MatchedSuggestions()
 		m.listView.Cursor = m.textInput.CurrentSuggestionIndex()
 		return m, cmd
-	case FailedRequest:
+	case types.FailedRequest:
 		logger.Log.Info("got the error message")
-		logger.Log.Error(msg.err)
-	case UpdateViewMessage:
+		logger.Log.Error(msg.Err)
+		return m, cmd
+	case types.ViewMessage:
 		logger.Log.Info("got the message")
 		return m, cmd
 	}
@@ -105,7 +83,7 @@ func (m Search) Update(msg tea.Msg) (Search, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Search) GetSuggestions(query string) tea.Cmd {
+func (m Model) GetSuggestions(query string) tea.Cmd {
 	return func() tea.Msg {
 		logger.Log.Info("in")
 
@@ -114,28 +92,27 @@ func (m Search) GetSuggestions(query string) tea.Cmd {
 		url := "https://dummyjson.com/products/search?q="
 		request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return FailedRequest{err}
+			return types.FailedRequest{Err: err}
 		}
 		response, err := http.DefaultClient.Do(request)
 		if err != nil {
-			return FailedRequest{err}
+			return types.FailedRequest{Err: err}
 		}
 
 		defer response.Body.Close()
 		if response.StatusCode != http.StatusOK {
-			return FailedRequest{
-				fmt.Errorf("Failed Request with status: %d",
+			return types.FailedRequest{
+				Err: fmt.Errorf("Failed Request with status: %d",
 					response.StatusCode),
 			}
 		}
 		var data DummyJson
 		err = json.NewDecoder(response.Body).Decode(&data)
 		if err != nil {
-			return FailedRequest{err}
+			return types.FailedRequest{Err: err}
 		}
 		logger.Log.Info("extracting titles")
-		return SuccessRequest{extractTitles(data)}
-
+		return types.SuccessRequest{Suggetions: extractTitles(data)}
 	}
 }
 
@@ -147,7 +124,7 @@ func extractTitles(data DummyJson) []string {
 	return titles
 }
 
-func NewCartView() Search {
+func New() Model {
 	ti := input.New()
 	ti.Placeholder = "search"
 	ti.Focus()
@@ -155,7 +132,7 @@ func NewCartView() Search {
 	ti.CharLimit = 64
 	ti.Width = 20
 	ti.SetSuggestions([]string{"Buy carrots", "Buy celery", "Buy kohlrabi", "4", "4"})
-	return Search{
+	return Model{
 		textInput: ti,
 		listView:  list.NewListView(ti.AvailableSuggestions()),
 	}

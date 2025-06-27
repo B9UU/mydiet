@@ -2,6 +2,7 @@ package tablelisting
 
 import (
 	"mydiet/internal/store"
+	"mydiet/internal/types"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
@@ -14,11 +15,12 @@ var baseStyle = lipgloss.NewStyle().
 	BorderForeground(lipgloss.Color("240"))
 
 type Model struct {
-	mealName string
-	mealData store.MealsData
-	style    lipgloss.Style
-	Table    table.Model
-	keys     KeyMap
+	mealsStore *store.Store
+	mealName   store.MealType
+	mealData   store.MealsData
+	style      lipgloss.Style
+	Table      table.Model
+	keys       KeyMap
 }
 
 func (m Model) Init() tea.Cmd {
@@ -32,6 +34,20 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.Esc):
 			m.Table.Blur()
+			return m, cmd
+		case key.Matches(msg, m.keys.Delete):
+			m.mealData = m.mealsStore.Delete(
+				m.mealName, m.Table.SelectedRow())
+			m.Table.SetRows(m.mealData.TableRowsFor())
+			return m, cmd
+		case key.Matches(msg, m.keys.Add):
+			return m, func() tea.Msg {
+				return types.ViewMessage{
+					Msg:     m.mealName,
+					NewView: types.SEARCHBOX,
+				}
+			}
+
 		case key.Matches(msg, m.keys.Enter):
 			return m, tea.Batch(
 				tea.Printf("Let's go to %s!", m.Table.SelectedRow()[2]),
@@ -63,20 +79,17 @@ func (m Model) View() string {
 	return style.Render(
 		lipgloss.JoinVertical(
 			lipgloss.Center,
-			tableName.Render(m.mealName),
+			tableName.Render(string(m.mealName)),
 			m.Table.View()) + "\n",
 	)
 }
 
 // New creates a new model with default settings.
-func New(mealName string) Model {
-	meals := store.Meals[store.MealType(mealName)]
+func New(mealName store.MealType, st *store.Store) Model {
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithHeight(7),
-		table.WithRows(meals.TableRowsFor()),
 	)
-
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderForeground(lipgloss.Color("240")).
@@ -89,11 +102,13 @@ func New(mealName string) Model {
 	t.SetStyles(s)
 
 	m := Model{
-		style:    baseStyle,
-		Table:    t,
-		keys:     Keys,
-		mealName: mealName,
-		mealData: meals,
+		style:      baseStyle,
+		Table:      t,
+		mealsStore: st,
+		keys:       Keys,
+		mealName:   mealName,
 	}
+	m.mealData = m.mealsStore.Get(m.mealName)
+	m.Table.SetRows(m.mealData.TableRowsFor())
 	return m
 }

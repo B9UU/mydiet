@@ -9,8 +9,10 @@ import (
 type KeyMap struct {
 	table.KeyMap
 
-	Enter key.Binding
-	Esc   key.Binding
+	Delete key.Binding
+	Enter  key.Binding
+	Esc    key.Binding
+	Add    key.Binding
 }
 
 func (k KeyMap) FullHelp() [][]key.Binding {
@@ -36,6 +38,14 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 var Keys = KeyMap{
 	KeyMap: table.DefaultKeyMap(),
+	Add: key.NewBinding(
+		key.WithKeys("a"),
+		key.WithHelp("a", "add row"),
+	),
+	Delete: key.NewBinding(
+		key.WithKeys("d"),
+		key.WithHelp("d", "delete row"),
+	),
 	Enter: key.NewBinding(
 		key.WithKeys(tea.KeyEnter.String()),
 		key.WithHelp("Enter", "Select"),

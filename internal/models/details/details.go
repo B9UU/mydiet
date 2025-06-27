@@ -1,8 +1,9 @@
-package views
+package details
 
 import (
 	tablelisting "mydiet/internal/models/table"
 	"mydiet/internal/store"
+	"mydiet/internal/types"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -13,7 +14,7 @@ import (
 var AllMeals = []store.MealType{
 	store.Breakfast, store.Lunch, store.Dinner, store.Snack}
 
-type Details struct {
+type Model struct {
 	style  lipgloss.Style
 	tables map[store.MealType]tablelisting.Model
 	active store.MealType
@@ -21,7 +22,7 @@ type Details struct {
 	keys   keyMap
 }
 
-func (m Details) View() string {
+func (m Model) View() string {
 
 	upper := lipgloss.JoinHorizontal(
 		lipgloss.Center,
@@ -43,9 +44,12 @@ func (m Details) View() string {
 	return mainBox
 }
 
-func (m Details) Update(msg tea.Msg) (Details, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
+	case types.ViewMessage:
+		return m, cmd
+
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Help):
@@ -62,22 +66,21 @@ func (m Details) Update(msg tea.Msg) (Details, tea.Cmd) {
 		case key.Matches(msg, m.keys.Fourth):
 			m = m.SetActive(store.Snack)
 		}
-
 	}
 	m.tables[m.active], cmd = m.tables[m.active].Update(msg)
 	return m, cmd
 }
-func (m Details) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	return nil
 }
 
 // New creates a new model with default settings.
-func New() Details {
+func New(s *store.Store) Model {
 	var tables = make(map[store.MealType]tablelisting.Model)
 	for _, k := range AllMeals {
-		tables[k] = tablelisting.New(string(k))
+		tables[k] = tablelisting.New(k, s)
 	}
-	m := Details{
+	m := Model{
 		style: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("36")).
@@ -90,7 +93,7 @@ func New() Details {
 
 }
 
-func (m Details) SetActive(meal store.MealType) Details {
+func (m Model) SetActive(meal store.MealType) Model {
 	for _, i := range AllMeals {
 		c := m.tables[i]
 		c.Table.Blur()

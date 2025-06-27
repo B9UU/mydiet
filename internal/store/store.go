@@ -1,46 +1,43 @@
 package store
 
 import (
+	"mydiet/internal/logger"
 	"strconv"
 
 	"github.com/charmbracelet/bubbles/table"
 )
 
-type MealData struct {
-	Id       int
-	Name     string
-	Calories int
-	Carbs    int
-	Protein  int
+type Store struct{}
+
+func (s *Store) Get(meal MealType) MealsData {
+	return allMeals[meal]
 }
 
-type MealType string
-
-type MealsData []MealData
-
-const (
-	Breakfast MealType = "Breakfast"
-	Lunch     MealType = "Lunch"
-	Dinner    MealType = "Dinner"
-	Snack     MealType = "Snack"
-)
-
-func (s MealsData) TableRowsFor() []table.Row {
-	var rows []table.Row
-
-	for _, meal := range s {
-		rows = append(rows, table.Row{
-			strconv.Itoa(meal.Id),
-			meal.Name,
-			strconv.Itoa(meal.Calories),
-			strconv.Itoa(meal.Carbs),
-			strconv.Itoa(meal.Protein),
-		})
+func (s *Store) Delete(meal MealType, row table.Row) MealsData {
+	id, err := strconv.Atoi(row[0])
+	if err != nil {
+		logger.Log.Fatal("Unable to parse id Err: %v", err)
 	}
-	return rows
+
+	meals := allMeals[meal]
+	newMeals := make(MealsData, 0, len(meals))
+
+	for _, m := range meals {
+		if m.Id != id {
+			newMeals = append(newMeals, m)
+		}
+	}
+
+	allMeals[meal] = newMeals
+	return newMeals
 }
 
-var Meals = map[MealType]MealsData{
+func (s *Store) Add(meal MealType, row MealData) MealsData {
+	allMeals[meal] = append(allMeals[meal], row)
+	return allMeals[meal]
+}
+
+var allMeals = map[MealType]MealsData{
 	Breakfast: {
 		{Id: 1, Name: "Oatmeal", Calories: 150, Carbs: 27, Protein: 5},
 		{Id: 2, Name: "Scrambled Eggs", Calories: 200, Carbs: 2, Protein: 12},
@@ -71,6 +68,9 @@ var Meals = map[MealType]MealsData{
 		{Id: 21, Name: "Apple with Peanut Butter", Calories: 180, Carbs: 22, Protein: 4},
 		{Id: 22, Name: "Trail Mix", Calories: 250, Carbs: 16, Protein: 6},
 		{Id: 23, Name: "Boiled Eggs", Calories: 140, Carbs: 1, Protein: 13},
+		{Id: 24, Name: "Cottage Cheese", Calories: 110, Carbs: 4, Protein: 12},
+		{Id: 24, Name: "Cottage Cheese", Calories: 110, Carbs: 4, Protein: 12},
+		{Id: 24, Name: "Cottage Cheese", Calories: 110, Carbs: 4, Protein: 12},
 		{Id: 24, Name: "Cottage Cheese", Calories: 110, Carbs: 4, Protein: 12},
 	},
 }
