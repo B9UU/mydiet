@@ -15,12 +15,17 @@ var baseStyle = lipgloss.NewStyle().
 	BorderForeground(lipgloss.Color("240"))
 
 type Model struct {
-	mealsStore *store.Store
-	mealName   store.MealType
-	mealData   store.MealsData
-	style      lipgloss.Style
-	Table      table.Model
-	keys       KeyMap
+	store    store.Store
+	mealName store.MealType
+	mealData store.Foods
+	style    lipgloss.Style
+	Table    table.Model
+	keys     KeyMap
+}
+
+func (m *Model) SyncRows() {
+	meals := m.store.MealsStore.Get(m.mealName)
+	m.Table.SetRows(meals.TableRowsFor())
 }
 
 func (m Model) Init() tea.Cmd {
@@ -36,7 +41,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.Table.Blur()
 			return m, cmd
 		case key.Matches(msg, m.keys.Delete):
-			m.mealData = m.mealsStore.Delete(
+			m.mealData = m.store.MealsStore.Delete(
 				m.mealName, m.Table.SelectedRow())
 			m.Table.SetRows(m.mealData.TableRowsFor())
 			return m, cmd
@@ -85,7 +90,7 @@ func (m Model) View() string {
 }
 
 // New creates a new model with default settings.
-func New(mealName store.MealType, st *store.Store) Model {
+func New(mealName store.MealType, st store.Store) Model {
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithHeight(7),
@@ -102,13 +107,14 @@ func New(mealName store.MealType, st *store.Store) Model {
 	t.SetStyles(s)
 
 	m := Model{
-		style:      baseStyle,
-		Table:      t,
-		mealsStore: st,
-		keys:       Keys,
-		mealName:   mealName,
+		style:    baseStyle,
+		Table:    t,
+		store:    st,
+		keys:     Keys,
+		mealName: mealName,
 	}
-	m.mealData = m.mealsStore.Get(m.mealName)
-	m.Table.SetRows(m.mealData.TableRowsFor())
+	m.SyncRows()
+	// m.mealData = m.store.MealsStore.Get(m.mealName)
+	// m.Table.SetRows(m.mealData.TableRowsFor())
 	return m
 }

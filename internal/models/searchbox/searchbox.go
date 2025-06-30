@@ -14,19 +14,14 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type Food struct {
-	Id   int
-	Name string
-}
-
 type Model struct {
 	input    textinput.Model
 	table    table.Model
-	data     types.DummyJson
+	data     store.Foods
 	help     help.Model
 	keys     searchBoxKeys
 	mealType store.MealType
-	store    *store.Store
+	store    store.Store
 }
 
 func (m Model) View() string {
@@ -65,8 +60,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Select):
 			r := m.table.SelectedRow()
 			id, _ := strconv.Atoi(r[0])
-			m.store.Add(m.mealType, store.MealData{
-				Id:   id,
+			m.store.MealsStore.Add(m.mealType, store.Food{
+				ID:   id,
 				Name: r[1],
 			})
 			return m, func() tea.Msg {
@@ -76,23 +71,29 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				}
 			}
 		}
-	case types.SuccessDummy:
-		m.data.Products = append(m.data.Products, msg.Data.Products...)
-		logger.Log.Info("Got messages: ", len(m.data.Products))
-		m.table.SetRows(m.data.TableRowsFor())
-		// m.table, cmd = m.table.Update(msg)
+	case types.SuccessRequest:
+		if len(msg) == 0 {
+			return m, nil
+		}
+		m.data = store.Foods(msg)
+		logger.Log.Info("Got messages: ", len(m.data), msg)
+		m.table.SetRows(m.data.SearchRows())
 		return m, nil
+
+	case types.FailedRequest:
+
+		logger.Log.Info("Failed")
 	}
 	m.input, cmd = m.input.Update(msg)
 	// m.table, cmd = m.table.Update(msg)
 	return m, cmd
 }
-func New(mType store.MealType, s *store.Store) Model {
+func New(mType store.MealType, s store.Store) Model {
 	t := table.New(
 		table.WithColumns([]table.Column{
 			{Title: "Id", Width: 0},
-			{Title: "Title", Width: 10},
-			{Title: "Description", Width: 10},
+			{Title: "Name", Width: 10},
+			{Title: "Calories", Width: 10},
 		}),
 		table.WithHeight(7),
 	)
@@ -106,7 +107,7 @@ func New(mType store.MealType, s *store.Store) Model {
 	ti.CharLimit = 64
 	ti.Width = 20
 	ti.Focus()
-	return Model{
+	m := Model{
 		table:    t,
 		input:    ti,
 		help:     help.New(),
@@ -114,4 +115,12 @@ func New(mType store.MealType, s *store.Store) Model {
 		mealType: mType,
 		store:    s,
 	}
+	f, err := m.store.FoodStore.GetAll("")
+	if err != nil {
+		logger.Log.Error(err)
+	}
+	m.data = f
+	m.table.SetRows(m.data.SearchRows())
+
+	return m
 }

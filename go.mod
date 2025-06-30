@@ -10,7 +10,9 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.5
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/log v0.4.2
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/mattn/go-runewidth v0.0.16
+	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/rivo/uniseg v0.4.7
 )
 

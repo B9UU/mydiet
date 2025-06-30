@@ -22,6 +22,11 @@ type Model struct {
 	keys   keyMap
 }
 
+func (m *Model) SyncRowsFor() {
+	t := m.tables[m.active]
+	t.SyncRows()
+	m.tables[m.active] = t
+}
 func (m Model) View() string {
 
 	upper := lipgloss.JoinHorizontal(
@@ -75,7 +80,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 // New creates a new model with default settings.
-func New(s *store.Store) Model {
+func New(s store.Store) Model {
 	var tables = make(map[store.MealType]tablelisting.Model)
 	for _, k := range AllMeals {
 		tables[k] = tablelisting.New(k, s)
