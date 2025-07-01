@@ -12,10 +12,11 @@ type ViewMessage struct {
 const (
 	_ View = iota
 	DETAILSVIEW
-	SEARCHVIEW
+	FORMVIEW
 	SEARCHBOX
 )
 
-type FailedRequest error
+type ErrMsg error
 
 type SuccessRequest store.Foods
+type FormSubbmited bool

@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"mydiet/internal/logger"
 	"mydiet/internal/models/details"
+	"mydiet/internal/models/form"
 	searchbox "mydiet/internal/models/searchbox"
 	"mydiet/internal/store"
 	"mydiet/internal/types"
@@ -25,6 +27,7 @@ type model struct {
 type allViews struct {
 	Detail details.Model
 	Search searchbox.Model
+	Form   form.Model
 }
 
 func (m model) Init() tea.Cmd {
@@ -36,6 +39,8 @@ func (m model) View() string {
 	switch m.activeView {
 	case types.SEARCHBOX:
 		return m.Views.Search.View()
+	case types.FORMVIEW:
+		return m.Views.Form.View()
 	default:
 		return m.Views.Detail.View()
 	}
@@ -49,9 +54,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.NewView {
 		case types.DETAILSVIEW:
 			if msg.Msg == "updated" {
+				logger.Log.Info("Updated")
+
+				err := m.store.FoodStore.InsertLog(m.Views.Form.FoodLog)
+				if err != nil {
+					return m, func() tea.Msg {
+						return types.ErrMsg(err)
+					}
+				}
 				m.Views.Detail.SyncRowsFor()
 				// m.Views.Detail = details.New(m.store)
 			}
+		case types.FORMVIEW:
+			food, ok := msg.Msg.(*store.Food)
+			if !ok {
+				return m, func() tea.Msg {
+					return types.ErrMsg(errors.New("Invalid food "))
+				}
+			}
+			var err error
+			food.Units, err = m.store.FoodStore.GetUnits(food.ID)
+			if err != nil {
+				return m, func() tea.Msg {
+					return types.ErrMsg(errors.New("Invalid food "))
+				}
+			}
+			m.Views.Form = form.New(food)
+			m.activeView = types.FORMVIEW
+
 		case types.SEARCHBOX:
 			m.Views.Search = searchbox.New(msg.Msg.(store.MealType), m.store)
 		}
@@ -60,6 +90,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case types.SEARCHBOX:
 		m.Views.Search, cmd = m.Views.Search.Update(msg)
+
+	case types.FORMVIEW:
+		m.Views.Form, cmd = m.Views.Form.Update(msg)
 	default:
 		m.Views.Detail, cmd = m.Views.Detail.Update(msg)
 	}
@@ -76,6 +109,7 @@ func initialModel() *model {
 		store:      s,
 		Views: allViews{
 			Detail: details.New(s),
+			// Form:   form.New(),
 		},
 	}
 	return m

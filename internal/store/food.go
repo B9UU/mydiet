@@ -12,33 +12,27 @@ type FoodStore struct {
 	DB *sqlx.DB
 }
 
-type Food struct {
-	ID          int     `db:"id"`
-	Name        string  `db:"name"`
-	ServingSize float64 `db:"serving_size"`
-	ServingUnit string  `db:"serving_unit"`
-	Calories    float64 `db:"calories"`
-	Protein     float64 `db:"protein"`
-	Fat         float64 `db:"fat"`
-	Carbs       float64 `db:"carbs"`
-	Fiber       float64 `db:"fiber"`
-	Sugar       float64 `db:"sugar"`
-	Sodium      float64 `db:"sodium"`
-}
-type Foods []Food
-
 func (f FoodStore) Search(name string) (Foods, error) {
 	stmt := "SELECT * FROM foods WHERE name LIKE ?"
 	args := []any{name + "%"}
 	food := Foods{}
-	logger.Log.Info(name, food)
 	err := f.DB.Select(&food, stmt, args...)
 	if err != nil {
 		return nil, err
 	}
-
-	logger.Log.Info(name, food)
+	logger.Log.Info(name)
 	return food, nil
+}
+func (f FoodStore) GetUnits(id int) ([]FoodUnits, error) {
+	stmt := "SELECT * FROM food_units WHERE food_id = ?"
+	args := []any{id}
+	foodUnits := []FoodUnits{}
+	err := f.DB.Select(&foodUnits, stmt, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return foodUnits, nil
 }
 func (f FoodStore) GetAll(name string) (Foods, error) {
 	stmt := "SELECT * FROM foods;"
@@ -56,7 +50,7 @@ func (s Foods) TableRowsFor() []table.Row {
 	var rows []table.Row
 	for _, meal := range s {
 		row := table.Row{
-			fmt.Sprintf("%d", meal.ID),
+			fmt.Sprintf("%d", meal.LogID),
 			meal.Name,
 			fmt.Sprintf("%.2f", meal.Calories),
 			fmt.Sprintf("%.2f", meal.Carbs),
@@ -79,4 +73,12 @@ func (s Foods) SearchRows() []table.Row {
 		rows = append(rows, row)
 	}
 	return rows
+}
+func (s Foods) GetId(id int) *Food {
+	for _, v := range s {
+		if v.ID == id {
+			return &v
+		}
+	}
+	return nil
 }

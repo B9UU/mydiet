@@ -13,7 +13,7 @@ func (m Model) GetSuggestions(query string) tea.Cmd {
 
 		foods, err := m.store.FoodStore.Search(query)
 		if err != nil {
-			return types.FailedRequest(err)
+			return types.ErrMsg(err)
 		}
 		return types.SuccessRequest(foods)
 	}

@@ -24,7 +24,7 @@ type Model struct {
 }
 
 func (m *Model) SyncRows() {
-	meals := m.store.MealsStore.Get(m.mealName)
+	meals, _ := m.store.FoodStore.GetLogs(m.mealName)
 	m.Table.SetRows(meals.TableRowsFor())
 }
 
@@ -41,9 +41,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.Table.Blur()
 			return m, cmd
 		case key.Matches(msg, m.keys.Delete):
-			m.mealData = m.store.MealsStore.Delete(
-				m.mealName, m.Table.SelectedRow())
-			m.Table.SetRows(m.mealData.TableRowsFor())
+			// m.mealData = m.store.MealsStore.Delete(
+			// 	m.mealName, m.Table.SelectedRow())
+			// m.Table.SetRows(m.mealData.TableRowsFor())
 			return m, cmd
 		case key.Matches(msg, m.keys.Add):
 			return m, func() tea.Msg {

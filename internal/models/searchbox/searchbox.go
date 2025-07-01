@@ -59,15 +59,22 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.Select):
 			r := m.table.SelectedRow()
-			id, _ := strconv.Atoi(r[0])
-			m.store.MealsStore.Add(m.mealType, store.Food{
-				ID:   id,
-				Name: r[1],
-			})
+			id, err := strconv.Atoi(r[0])
+			if err != nil {
+				return m, func() tea.Msg {
+					return types.ErrMsg(err)
+				}
+			}
+			// m.store.MealsStore.Add(m.mealType, store.Food{
+			// 	ID:   id,
+			// 	Name: r[1],
+			// })
+			food := m.data.GetId(id)
+			food.Meal = m.mealType
 			return m, func() tea.Msg {
 				return types.ViewMessage{
-					Msg:     "updated",
-					NewView: types.DETAILSVIEW,
+					Msg:     food,
+					NewView: types.FORMVIEW,
 				}
 			}
 		}
@@ -76,12 +83,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 		m.data = store.Foods(msg)
-		logger.Log.Info("Got messages: ", len(m.data), msg)
+		logger.Log.Info("Got messages: ", len(m.data))
 		m.table.SetRows(m.data.SearchRows())
 		return m, nil
 
-	case types.FailedRequest:
-
+	case types.ErrMsg:
 		logger.Log.Info("Failed")
 	}
 	m.input, cmd = m.input.Update(msg)
