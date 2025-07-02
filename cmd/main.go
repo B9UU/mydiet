@@ -49,6 +49,11 @@ func (m model) View() string {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch {
+		case msg.String() == "ctrl+c":
+			return m, tea.Quit
+		}
 	case types.ViewMessage:
 		m.activeView = msg.NewView
 		switch msg.NewView {
@@ -83,7 +88,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.activeView = types.FORMVIEW
 
 		case types.SEARCHBOX:
-			m.Views.Search = searchbox.New(msg.Msg.(store.MealType), m.store)
+			if meal, ok := msg.Msg.(store.MealType); ok {
+				m.Views.Search = searchbox.New(meal, m.store)
+			}
 		}
 	}
 	switch m.activeView {
@@ -109,7 +116,6 @@ func initialModel() *model {
 		store:      s,
 		Views: allViews{
 			Detail: details.New(s),
-			// Form:   form.New(),
 		},
 	}
 	return m

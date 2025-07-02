@@ -59,8 +59,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Interrupt
-		case "esc", "q":
+		case "q":
 			return m, tea.Quit
+		case "esc":
+			return m, func() tea.Msg {
+				return types.ViewMessage{
+					Msg:     "back",
+					NewView: types.SEARCHBOX,
+				}
+			}
 		}
 	}
 
