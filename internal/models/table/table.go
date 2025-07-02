@@ -20,7 +20,7 @@ type Model struct {
 	mealData store.Foods
 	style    lipgloss.Style
 	Table    table.Model
-	keys     KeyMap
+	Keys     KeyMap
 }
 
 func (m *Model) SyncRows() {
@@ -37,26 +37,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.keys.Esc):
-			m.Table.Blur()
-			return m, cmd
-		case key.Matches(msg, m.keys.Delete):
+		case key.Matches(msg, m.Keys.Delete):
 			// m.mealData = m.store.MealsStore.Delete(
 			// 	m.mealName, m.Table.SelectedRow())
 			// m.Table.SetRows(m.mealData.TableRowsFor())
 			return m, cmd
-		case key.Matches(msg, m.keys.Add):
+		case key.Matches(msg, m.Keys.Add):
 			return m, func() tea.Msg {
 				return types.ViewMessage{
 					Msg:     m.mealName,
 					NewView: types.SEARCHBOX,
 				}
 			}
-
-		case key.Matches(msg, m.keys.Enter):
-			return m, tea.Batch(
-				tea.Printf("Let's go to %s!", m.Table.SelectedRow()[2]),
-			)
 		}
 	}
 	m.Table, cmd = m.Table.Update(msg)
@@ -110,7 +102,7 @@ func New(mealName store.MealType, st store.Store) Model {
 		style:    baseStyle,
 		Table:    t,
 		store:    st,
-		keys:     Keys,
+		Keys:     Keys,
 		mealName: mealName,
 	}
 	m.SyncRows()

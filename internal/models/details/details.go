@@ -1,6 +1,7 @@
 package details
 
 import (
+	"mydiet/internal/models/date"
 	tablelisting "mydiet/internal/models/table"
 	"mydiet/internal/store"
 	"mydiet/internal/types"
@@ -15,11 +16,14 @@ var AllMeals = []store.MealType{
 	store.Breakfast, store.Lunch, store.Dinner, store.Snack}
 
 type Model struct {
-	style  lipgloss.Style
+	style lipgloss.Style
+
 	tables map[store.MealType]tablelisting.Model
 	active store.MealType
-	help   help.Model
-	keys   keyMap
+
+	date date.Model
+	help help.Model
+	keys keyMap
 }
 
 func (m *Model) SyncRowsFor() {
@@ -38,12 +42,14 @@ func (m Model) View() string {
 		m.tables[store.Dinner].View(),
 		m.tables[store.Snack].View())
 
+	helpView := m.help.View(help.KeyMap(m))
 	mainBox := m.style.Render(
 		lipgloss.JoinVertical(
 			lipgloss.Center,
+			m.date.View(),
 			upper,
 			lower,
-			m.help.View(m.keys),
+			helpView,
 		),
 	)
 	return mainBox
@@ -52,16 +58,36 @@ func (m Model) View() string {
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
+
 	case types.ViewMessage:
 		return m, cmd
 
 	case tea.KeyMsg:
+
 		switch {
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
 			// return m, tea.Println("help")
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
+		case key.Matches(msg, m.keys.Toggle):
+			if !m.date.Date.Selected {
+				m = m.BlurAll()
+				m.date.Date.SelectDate()
+				return m, cmd
+			} else {
+				m = m.SetActive(m.active)
+				m.date.Date.UnselectDate()
+				return m, cmd
+			}
+		}
+
+		if m.date.Date.Selected {
+			m.date, cmd = m.date.Update(msg)
+			return m, cmd
+		}
+		switch {
+
 		case key.Matches(msg, m.keys.First):
 			m = m.SetActive(store.Breakfast)
 		case key.Matches(msg, m.keys.Second):
@@ -93,17 +119,23 @@ func New(s store.Store) Model {
 		tables: tables,
 		help:   help.New(),
 		keys:   keys,
+
+		date: date.New(),
 	}
 	return m.SetActive(store.Breakfast)
 
 }
 
-func (m Model) SetActive(meal store.MealType) Model {
+func (m Model) BlurAll() Model {
 	for _, i := range AllMeals {
 		c := m.tables[i]
 		c.Table.Blur()
 		m.tables[i] = c
 	}
+	return m
+}
+func (m Model) SetActive(meal store.MealType) Model {
+	m = m.BlurAll()
 	t := m.tables[meal]
 	t.Table.Focus()
 	m.tables[meal] = t
@@ -117,31 +149,39 @@ type keyMap struct {
 	Help key.Binding
 	Quit key.Binding
 
+	Toggle key.Binding
 	First  key.Binding
 	Second key.Binding
 	Third  key.Binding
 	Fourth key.Binding
 }
 
-func (k keyMap) FullHelp() [][]key.Binding {
-	dd := k.KeyMap.FullHelp()
-	dd[2] = append(
-		dd[2],
-		k.First,
-		k.Second,
-		k.Third,
-		k.Fourth,
-		k.Help,
-		k.Quit,
-	)
-	return dd
+func (m Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{}
 }
-func (k keyMap) ShortHelp() []key.Binding {
-	dd := k.KeyMap.ShortHelp()
+func (m Model) ShortHelp() []key.Binding {
+	dd := []key.Binding{}
+	if m.date.Date.Selected {
+		keys.Toggle.SetHelp("t", "select table")
+		dd = append(dd,
+			m.date.Date.KeyMap.Up,
+			m.date.Date.KeyMap.Down,
+			m.date.Date.KeyMap.Right,
+			m.date.Date.KeyMap.Left,
+		)
+	} else {
+		dd = append(dd,
+			keys.Add,
+			keys.Delete,
+			keys.PageUp,
+			keys.PageDown,
+		)
+	}
 	return append(
 		dd,
-		k.Help,
-		// k.Quit,
+		keys.Toggle,
+		keys.Help,
+		keys.Quit,
 	)
 }
 
@@ -150,19 +190,24 @@ var keys = keyMap{
 
 	First: key.NewBinding(
 		key.WithKeys("1"),
-		key.WithHelp("?", "Help"),
+		key.WithHelp("1", "Breakfast"),
 	),
 	Second: key.NewBinding(
 		key.WithKeys("2"),
-		key.WithHelp("?", "Help"),
+		key.WithHelp("2", "Launch"),
 	),
 	Third: key.NewBinding(
 		key.WithKeys("3"),
-		key.WithHelp("?", "Help"),
+		key.WithHelp("3", "Dinner"),
 	),
 	Fourth: key.NewBinding(
 		key.WithKeys("4"),
-		key.WithHelp("?", "Help"),
+		key.WithHelp("4", "Snack"),
+	),
+
+	Toggle: key.NewBinding(
+		key.WithKeys("t", "T"),
+		key.WithHelp("t", "select Time"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),

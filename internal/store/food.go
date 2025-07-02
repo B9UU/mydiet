@@ -52,9 +52,16 @@ func (s Foods) TableRowsFor() []table.Row {
 		row := table.Row{
 			fmt.Sprintf("%d", meal.LogID),
 			meal.Name,
-			fmt.Sprintf("%.2f", meal.Calories),
-			fmt.Sprintf("%.2f", meal.Carbs),
-			fmt.Sprintf("%.2f", meal.Protein),
+			fmt.Sprintf("%.1f %s", meal.QTY, meal.Unit),
+			fmt.Sprintf("%.1f", meal.Grams),
+
+			fmt.Sprintf("%.1f", meal.Calories),
+			fmt.Sprintf("%.1f", meal.Protein),
+			fmt.Sprintf("%.1f", meal.Fat),
+			fmt.Sprintf("%.1f", meal.Carbs),
+			fmt.Sprintf("%.1f", meal.Fiber),
+			fmt.Sprintf("%.1f", meal.Sugar),
+			fmt.Sprintf("%.1f", meal.Sodium),
 		}
 
 		rows = append(rows, row)
