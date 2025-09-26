@@ -12,8 +12,8 @@ debug.log
 
 # Development files
 .claude/
-.todo.md
-CLAUDE.md
+# .todo.md
+# CLAUDE.md
 
 # Temporary files
 .DS_Store
