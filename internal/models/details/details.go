@@ -1,6 +1,7 @@
 package details
 
 import (
+	"mydiet/internal/logger"
 	"mydiet/internal/models/date"
 	tablelisting "mydiet/internal/models/table"
 	"mydiet/internal/store"
@@ -21,11 +22,25 @@ type Model struct {
 
 	tables      map[store.MealType]tablelisting.Model
 	active      store.MealType
-	currentDate time.Time  // Track current date for change detection
+	currentDate time.Time // Track current date for change detection
 
 	date date.Model
 	help help.Model
 	keys keyMap
+}
+
+func (m Model) GetDate() time.Time {
+	return m.date.Date.Time
+}
+
+// GetCurrentDate returns the current date tracked by the model
+func (m Model) GetCurrentDate() time.Time {
+	return m.currentDate
+}
+
+// GetDateModelTime returns the time from the date model
+func (m Model) GetDateModelTime() time.Time {
+	return m.date.Date.Time
 }
 
 func (m *Model) SyncRowsFor() {
@@ -101,8 +116,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			newDate := m.date.Date.Time
 
 			// If date changed, sync all tables with new date
-			if !oldDate.Equal(newDate.Truncate(24*time.Hour)) {
-				m.currentDate = newDate.Truncate(24*time.Hour)
+			if !oldDate.Equal(newDate.Truncate(24 * time.Hour)) {
+				logger.Log.Printf("Date changed: oldDate=%v (truncated=%v), newDate=%v (truncated=%v)",
+					oldDate, oldDate.Truncate(24 * time.Hour), newDate, newDate.Truncate(24 * time.Hour))
+				m.currentDate = newDate.Truncate(24 * time.Hour)
 				m.SyncAllTables()
 			}
 
@@ -133,7 +150,7 @@ func New(s store.Store) Model {
 	for _, k := range AllMeals {
 		tables[k] = tablelisting.New(k, s)
 	}
-	now := time.Now().Truncate(24*time.Hour)
+	now := time.Now().Truncate(24 * time.Hour)
 	m := Model{
 		style: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).

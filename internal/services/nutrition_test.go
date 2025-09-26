@@ -50,6 +50,37 @@ func (m *MockFoodStore) GetByID(id int) (*store.Food, error) {
 var _ store.FoodStoreInterface = &MockFoodStore{}
 
 func TestLogFood(t *testing.T) {
+	// New test to specifically verify date logging
+	t.Run("verify date logging", func(t *testing.T) {
+		mockStore := store.Store{
+			FoodStore: &MockFoodStore{},
+		}
+		specificDate := time.Date(2025, 9, 26, 0, 0, 0, 0, time.Local)
+
+		// Setup mock to capture the logged date
+		var capturedDate time.Time
+		mockStore.FoodStore.(*MockFoodStore).On("InsertLog", mock.MatchedBy(func(logEntry store.LoggingFood) bool {
+			capturedDate = logEntry.Timestamp
+			return true
+		})).Return(nil)
+
+		service := NewNutritionService(mockStore)
+		req := LogFoodRequest{
+			UserID:     1,
+			FoodID:     1,
+			FoodUnitID: 1,
+			Quantity:   2.0,
+			Meal:       store.Breakfast,
+		}
+
+		err := service.LogFood(req, specificDate)
+		assert.NoError(t, err)
+
+		// Verify the date was logged correctly
+		assert.Equal(t, specificDate.Year(), capturedDate.Year(), "Year should match")
+		assert.Equal(t, specificDate.Month(), capturedDate.Month(), "Month should match")
+		assert.Equal(t, specificDate.Day(), capturedDate.Day(), "Day should match")
+	})
 	tests := []struct {
 		name        string
 		request     LogFoodRequest
@@ -148,7 +179,7 @@ func TestLogFood(t *testing.T) {
 			tt.setupMock(mockStore.FoodStore.(*MockFoodStore))
 
 			service := NewNutritionService(mockStore)
-			err := service.LogFood(tt.request)
+			err := service.LogFood(tt.request, time.Now())
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -350,3 +381,4 @@ func TestGetFoodWithUnits(t *testing.T) {
 		})
 	}
 }
+

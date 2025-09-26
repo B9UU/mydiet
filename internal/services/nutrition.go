@@ -21,9 +21,9 @@ func NewNutritionService(store store.Store) *NutritionService {
 }
 
 // LogFood logs a food item for a specific meal
-func (s *NutritionService) LogFood(req LogFoodRequest) error {
-	logger.Log.Printf("Logging food: userId=%d, foodId=%d, foodUnitId=%d, meal=%s",
-		req.UserID, req.FoodID, req.FoodUnitID, req.Meal)
+func (s *NutritionService) LogFood(req LogFoodRequest, dt time.Time) error {
+	logger.Log.Printf("Logging food: userId=%d, foodId=%d, foodUnitId=%d, meal=%s, date=%v",
+		req.UserID, req.FoodID, req.FoodUnitID, req.Meal, dt)
 
 	if err := s.validateLogFoodRequest(req); err != nil {
 		logger.Log.Error("Food logging validation failed: %v", err)
@@ -36,7 +36,7 @@ func (s *NutritionService) LogFood(req LogFoodRequest) error {
 		FoodUnitId: req.FoodUnitID,
 		QTY:        req.Quantity,
 		Meal:       req.Meal,
-		Timestamp:  time.Now(),
+		Timestamp:  dt,
 	}
 
 	if err := s.store.FoodStore.InsertLog(logEntry); err != nil {
@@ -193,3 +193,4 @@ func (s *NutritionService) calculateMealSummary(foods store.Foods) MealSummary {
 
 	return summary
 }
+

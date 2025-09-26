@@ -1,6 +1,7 @@
 package app
 
 import (
+	"mydiet/internal/logger"
 	"mydiet/internal/models/details"
 	"mydiet/internal/models/form"
 	"mydiet/internal/models/searchbox"
@@ -77,8 +78,13 @@ func (vc *ViewCoordinator) handleDetailsView(msg types.ViewMessage) (*ViewCoordi
 				Quantity:   vc.views.Form.FoodLog.QTY,
 				Meal:       vc.views.Form.FoodLog.Meal,
 			}
+			currentDate := vc.views.Details.GetDate()
+			logger.Log.Info("Logging food with date: %v, selected date: %v, details model time: %v",
+				currentDate,
+				vc.views.Details.GetDateModelTime(),
+				vc.views.Details.GetCurrentDate())
 
-			if err := vc.service.LogFood(req); err != nil {
+			if err := vc.service.LogFood(req, currentDate); err != nil {
 				return vc, func() tea.Msg {
 					return types.ErrMsg(NewDatabaseError("Failed to log food", err))
 				}
