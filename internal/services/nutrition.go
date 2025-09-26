@@ -1,7 +1,8 @@
 package services
 
 import (
-	"errors"
+	"mydiet/internal/apperrors"
+	"mydiet/internal/logger"
 	"mydiet/internal/store"
 	"time"
 )
@@ -13,12 +14,19 @@ type NutritionService struct {
 
 // NewNutritionService creates a new nutrition service
 func NewNutritionService(store store.Store) *NutritionService {
+	if logger.Log == nil {
+		logger.Log = logger.NewLogger()
+	}
 	return &NutritionService{store: store}
 }
 
 // LogFood logs a food item for a specific meal
 func (s *NutritionService) LogFood(req LogFoodRequest) error {
+	logger.Log.Printf("Logging food: userId=%d, foodId=%d, foodUnitId=%d, meal=%s",
+		req.UserID, req.FoodID, req.FoodUnitID, req.Meal)
+
 	if err := s.validateLogFoodRequest(req); err != nil {
+		logger.Log.Error("Food logging validation failed: %v", err)
 		return err
 	}
 
@@ -31,39 +39,72 @@ func (s *NutritionService) LogFood(req LogFoodRequest) error {
 		Timestamp:  time.Now(),
 	}
 
-	return s.store.FoodStore.InsertLog(logEntry)
+	if err := s.store.FoodStore.InsertLog(logEntry); err != nil {
+		logger.Log.Error("Failed to insert food log: %v", err)
+		return apperrors.Wrap(err, "food log insertion failed")
+	}
+
+	return nil
 }
 
 // GetMealLogs retrieves food logs for a specific meal on a specific date
 func (s *NutritionService) GetMealLogs(userID int, meal store.MealType, date time.Time) (store.Foods, error) {
+	logger.Log.Printf("Retrieving meal logs: userId=%d, meal=%s, date=%s", userID, meal, date)
+
 	if userID <= 0 {
-		return nil, errors.New("invalid user ID")
+		logger.Log.Error("Invalid user ID for meal logs")
+		return nil, apperrors.New(apperrors.ErrValidation, "invalid user ID")
 	}
-	return s.store.FoodStore.GetLogs(meal, date)
+
+	foods, err := s.store.FoodStore.GetLogs(meal, date)
+	if err != nil {
+		logger.Log.Error("Failed to retrieve meal logs: %v", err)
+		return nil, apperrors.Wrap(err, "failed to retrieve meal logs")
+	}
+
+	return foods, nil
 }
 
 // SearchFoods searches for foods by name
 func (s *NutritionService) SearchFoods(query string) (store.Foods, error) {
+	logger.Log.Printf("Searching foods: query=%s", query)
+
+	var foods store.Foods
+	var err error
+
 	if query == "" {
-		return s.store.FoodStore.GetAll("")
+		foods, err = s.store.FoodStore.GetAll("")
+	} else {
+		foods, err = s.store.FoodStore.Search(query)
 	}
-	return s.store.FoodStore.Search(query)
+
+	if err != nil {
+		logger.Log.Error("Failed to search foods: %v", err)
+		return nil, apperrors.Wrap(err, "food search failed")
+	}
+
+	return foods, nil
 }
 
 // GetFoodWithUnits retrieves a food item with its available units
 func (s *NutritionService) GetFoodWithUnits(foodID int) (*store.Food, error) {
+	logger.Log.Printf("Retrieving food with units: foodId=%d", foodID)
+
 	if foodID <= 0 {
-		return nil, errors.New("invalid food ID")
+		logger.Log.Error("Invalid food ID")
+		return nil, apperrors.New(apperrors.ErrValidation, "invalid food ID")
 	}
 
 	food, err := s.store.FoodStore.GetByID(foodID)
 	if err != nil {
-		return nil, err
+		logger.Log.Error("Failed to retrieve food: %v", err)
+		return nil, apperrors.Wrap(err, "failed to retrieve food")
 	}
 
 	units, err := s.store.FoodStore.GetUnits(foodID)
 	if err != nil {
-		return nil, err
+		logger.Log.Error("Failed to retrieve food units: %v", err)
+		return nil, apperrors.Wrap(err, "failed to retrieve food units")
 	}
 
 	food.Units = units
@@ -73,20 +114,23 @@ func (s *NutritionService) GetFoodWithUnits(foodID int) (*store.Food, error) {
 // DeleteMealEntry removes a food entry from a meal
 func (s *NutritionService) DeleteMealEntry(userID int, logID int) error {
 	if userID <= 0 {
-		return errors.New("invalid user ID")
+		return apperrors.New(apperrors.ErrValidation, "invalid user ID")
 	}
 	if logID <= 0 {
-		return errors.New("invalid log ID")
+		return apperrors.New(apperrors.ErrValidation, "invalid log ID")
 	}
 
 	// Implementation would go here once the store method is implemented
-	return errors.New("delete functionality not yet implemented")
+	return apperrors.New(apperrors.ErrInternal, "delete functionality not yet implemented")
 }
 
 // GetDailySummary calculates nutritional totals for a day
 func (s *NutritionService) GetDailySummary(userID int, date time.Time) (*DailySummary, error) {
+	logger.Log.Printf("Retrieving daily summary: userId=%d, date=%s", userID, date)
+
 	if userID <= 0 {
-		return nil, errors.New("invalid user ID")
+		logger.Log.Error("Invalid user ID for daily summary")
+		return nil, apperrors.New(apperrors.ErrValidation, "invalid user ID")
 	}
 
 	summary := &DailySummary{
@@ -101,7 +145,8 @@ func (s *NutritionService) GetDailySummary(userID int, date time.Time) (*DailySu
 	for _, meal := range meals {
 		foods, err := s.GetMealLogs(userID, meal, date)
 		if err != nil {
-			return nil, err
+			logger.Log.Error("Failed to retrieve meal logs for summary: %v", err)
+			return nil, apperrors.Wrap(err, "failed to retrieve meal logs for summary")
 		}
 
 		summary.MealSummaries[meal] = s.calculateMealSummary(foods)
@@ -116,19 +161,19 @@ func (s *NutritionService) GetDailySummary(userID int, date time.Time) (*DailySu
 
 func (s *NutritionService) validateLogFoodRequest(req LogFoodRequest) error {
 	if req.UserID <= 0 {
-		return errors.New("invalid user ID")
+		return apperrors.New(apperrors.ErrValidation, "invalid user ID")
 	}
 	if req.FoodID <= 0 {
-		return errors.New("invalid food ID")
+		return apperrors.New(apperrors.ErrValidation, "invalid food ID")
 	}
 	if req.FoodUnitID <= 0 {
-		return errors.New("invalid food unit ID")
+		return apperrors.New(apperrors.ErrValidation, "invalid food unit ID")
 	}
 	if req.Quantity <= 0 {
-		return errors.New("quantity must be positive")
+		return apperrors.New(apperrors.ErrValidation, "quantity must be positive")
 	}
 	if req.Meal == "" {
-		return errors.New("meal type is required")
+		return apperrors.New(apperrors.ErrValidation, "meal type is required")
 	}
 	return nil
 }

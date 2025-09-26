@@ -53,7 +53,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				}
 			}
 		case key.Matches(msg, m.keys.Search):
-			logger.Log.Info("enter input")
+			logger.Log.Println("Entering search input")
 			cmd = m.GetSuggestions(m.input.Value())
 			return m, cmd
 
@@ -88,7 +88,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 		m.data = store.Foods(msg)
-		logger.Log.Info("Got messages: ", len(m.data))
+		logger.Log.Printf("Search results retrieved: %d", len(m.data))
 
 		// Convert to view models and then to table rows
 		searchViewModels := viewmodels.NewFoodSearchViewModels(m.data)
@@ -98,7 +98,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 
 	case types.ErrMsg:
-		logger.Log.Info("Failed")
+		logger.Log.Println("Search request failed")
 	}
 	m.input, cmd = m.input.Update(msg)
 	// m.table, cmd = m.table.Update(msg)
@@ -139,7 +139,7 @@ func New(mType store.MealType, s store.Store) Model {
 	// Load initial data and convert to view models
 	f, err := m.Store.FoodStore.GetAll("")
 	if err != nil {
-		logger.Log.Info(err)
+		logger.Log.Printf("Error retrieving initial data: %v", err)
 		panic(err)
 	}
 

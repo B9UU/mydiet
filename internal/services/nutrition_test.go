@@ -10,13 +10,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockStore is a mock implementation of the store
-type MockStore struct {
-	mock.Mock
-	FoodStore *MockFoodStore
-}
-
-// MockFoodStore is a mock implementation of FoodStore
 type MockFoodStore struct {
 	mock.Mock
 }
@@ -54,7 +47,9 @@ func (m *MockFoodStore) GetByID(id int) (*store.Food, error) {
 	return args.Get(0).(*store.Food), args.Error(1)
 }
 
-func TestNutritionService_LogFood(t *testing.T) {
+var _ store.FoodStoreInterface = &MockFoodStore{}
+
+func TestLogFood(t *testing.T) {
 	tests := []struct {
 		name        string
 		request     LogFoodRequest
@@ -147,12 +142,12 @@ func TestNutritionService_LogFood(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &MockStore{
+			mockStore := store.Store{
 				FoodStore: &MockFoodStore{},
 			}
-			tt.setupMock(mockStore.FoodStore)
+			tt.setupMock(mockStore.FoodStore.(*MockFoodStore))
 
-			service := NewNutritionService(store.Store{FoodStore: mockStore.FoodStore})
+			service := NewNutritionService(mockStore)
 			err := service.LogFood(tt.request)
 
 			if tt.expectError {
@@ -164,12 +159,12 @@ func TestNutritionService_LogFood(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			mockStore.FoodStore.AssertExpectations(t)
+			mockStore.FoodStore.(*MockFoodStore).AssertExpectations(t)
 		})
 	}
 }
 
-func TestNutritionService_GetMealLogs(t *testing.T) {
+func TestGetMealLogs(t *testing.T) {
 	tests := []struct {
 		name        string
 		userID      int
@@ -217,12 +212,12 @@ func TestNutritionService_GetMealLogs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &MockStore{
+			mockStore := store.Store{
 				FoodStore: &MockFoodStore{},
 			}
-			tt.setupMock(mockStore.FoodStore)
+			tt.setupMock(mockStore.FoodStore.(*MockFoodStore))
 
-			service := NewNutritionService(store.Store{FoodStore: mockStore.FoodStore})
+			service := NewNutritionService(mockStore)
 			result, err := service.GetMealLogs(tt.userID, tt.meal, tt.date)
 
 			if tt.expectError {
@@ -232,12 +227,12 @@ func TestNutritionService_GetMealLogs(t *testing.T) {
 				assert.Equal(t, tt.expected, result)
 			}
 
-			mockStore.FoodStore.AssertExpectations(t)
+			mockStore.FoodStore.(*MockFoodStore).AssertExpectations(t)
 		})
 	}
 }
 
-func TestNutritionService_SearchFoods(t *testing.T) {
+func TestSearchFoods(t *testing.T) {
 	tests := []struct {
 		name      string
 		query     string
@@ -276,23 +271,23 @@ func TestNutritionService_SearchFoods(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &MockStore{
+			mockStore := store.Store{
 				FoodStore: &MockFoodStore{},
 			}
-			tt.setupMock(mockStore.FoodStore)
+			tt.setupMock(mockStore.FoodStore.(*MockFoodStore))
 
-			service := NewNutritionService(store.Store{FoodStore: mockStore.FoodStore})
+			service := NewNutritionService(mockStore)
 			result, err := service.SearchFoods(tt.query)
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
 
-			mockStore.FoodStore.AssertExpectations(t)
+			mockStore.FoodStore.(*MockFoodStore).AssertExpectations(t)
 		})
 	}
 }
 
-func TestNutritionService_GetFoodWithUnits(t *testing.T) {
+func TestGetFoodWithUnits(t *testing.T) {
 	tests := []struct {
 		name        string
 		foodID      int
@@ -335,12 +330,12 @@ func TestNutritionService_GetFoodWithUnits(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &MockStore{
+			mockStore := store.Store{
 				FoodStore: &MockFoodStore{},
 			}
-			tt.setupMock(mockStore.FoodStore)
+			tt.setupMock(mockStore.FoodStore.(*MockFoodStore))
 
-			service := NewNutritionService(store.Store{FoodStore: mockStore.FoodStore})
+			service := NewNutritionService(mockStore)
 			result, err := service.GetFoodWithUnits(tt.foodID)
 
 			if tt.expectError {
@@ -351,7 +346,7 @@ func TestNutritionService_GetFoodWithUnits(t *testing.T) {
 				assert.Equal(t, tt.expected, result)
 			}
 
-			mockStore.FoodStore.AssertExpectations(t)
+			mockStore.FoodStore.(*MockFoodStore).AssertExpectations(t)
 		})
 	}
 }

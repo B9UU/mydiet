@@ -1,29 +1,48 @@
 package logger
 
 import (
-	"os"
-	"time"
-
+	"fmt"
 	"github.com/charmbracelet/log"
+	"os"
 )
 
-var Log *log.Logger
-var LogFile *os.File
+var (
+	Log     *LogWrapper
+	LogFile *os.File
+)
 
-func NewLogger() *log.Logger {
+type LogWrapper struct {
+	*log.Logger
+}
+
+func (lw *LogWrapper) Println(v ...any) {
+	lw.Info(fmt.Sprint(v...))
+}
+
+func (lw *LogWrapper) Printf(format string, v ...any) {
+	lw.Infof(format, v...)
+}
+
+// NewLogger creates a new logger instance
+func NewLogger() *LogWrapper {
 	var err error
 	LogFile, err = os.OpenFile("myapp.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to open log file: %w", err))
 	}
-	return log.NewWithOptions(
+
+	logger := log.NewWithOptions(
 		LogFile,
 		log.Options{
-			ReportCaller:    true,
-			ReportTimestamp: true,
-			TimeFormat:      time.RFC3339,
-			Prefix:          "->",
-			Level:           log.DebugLevel,
+			Level: log.DebugLevel,
 		},
 	)
+
+	return &LogWrapper{Logger: logger}
 }
+
+// Close closes the log file
+func Close() error {
+	return LogFile.Close()
+}
+

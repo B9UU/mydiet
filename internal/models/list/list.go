@@ -89,21 +89,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 
-	logger.Log.Info("Focused list, ", m.Focused())
+	logger.Log.Println("Focused list")
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		// next
 
 		case tea.KeyDown.String():
-			logger.Log.Info("down")
+			logger.Log.Println("Cursor moved down")
 			m.Cursor++
 			if m.Cursor >= len(m.Choices) {
 				m.Cursor = 0
 			}
 		// prev
 		case tea.KeyUp.String():
-			logger.Log.Info("up")
+			logger.Log.Println("Cursor moved up")
 			m.Cursor--
 			if m.Cursor < 0 {
 				m.Cursor = len(m.Choices) - 1
@@ -111,7 +111,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 	}
 
-	logger.Log.Info(m.Cursor)
+	logger.Log.Println("Current cursor position")
 	return m, cmd
 }
 

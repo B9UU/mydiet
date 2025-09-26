@@ -73,7 +73,9 @@ func (f FoodStore) InsertLog(fl LoggingFood) error {
 	)`
 	_, err := f.DB.NamedExec(stmt, fl)
 	if err != nil {
+		logger.Log.Error("Failed to insert food log", "error", err, "food", fl)
 		return err
 	}
+	logger.Log.Info("Food log inserted successfully", "meal", fl.Meal, "food_id", fl.FoodId)
 	return nil
 }

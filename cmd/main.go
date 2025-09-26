@@ -110,7 +110,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case types.ErrMsg:
 		// Handle application errors
 		m.err = error(msg)
-		logger.Log.Error("Application error", "error", m.err)
+		logger.Log.Error("Application error during view update", "error", m.err, "active_view", m.coordinator.GetActiveView())
 		// Could show error in UI here
 		return m, nil
 	}

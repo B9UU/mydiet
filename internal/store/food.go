@@ -18,7 +18,7 @@ func (f FoodStore) Search(name string) (Foods, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger.Log.Info(name)
+	logger.Log.Info("Search term", "name", name)
 	return food, nil
 }
 func (f FoodStore) GetUnits(id int) ([]FoodUnits, error) {
@@ -33,16 +33,16 @@ func (f FoodStore) GetUnits(id int) ([]FoodUnits, error) {
 	return foodUnits, nil
 }
 func (f FoodStore) GetAll(name string) (Foods, error) {
-	logger.Log.Info("zeb")
+	logger.Log.Info("Retrieving all foods")
 	stmt := "SELECT * FROM foods;"
 	args := []any{name}
-	logger.Log.Info("name")
+	logger.Log.Info("Searching with name parameter", "name", name)
 	food := Foods{}
 	err := f.DB.Select(&food, stmt, args...)
 	if err != nil {
 		return nil, err
 	}
-	logger.Log.Info(len(food))
+	logger.Log.Info("Food count", "count", len(food))
 
 	return food, nil
 }
