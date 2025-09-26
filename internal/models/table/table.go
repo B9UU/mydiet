@@ -3,6 +3,10 @@ package tablelisting
 import (
 	"mydiet/internal/store"
 	"mydiet/internal/types"
+	"mydiet/internal/ui/adapters"
+	"mydiet/internal/ui/config"
+	"mydiet/internal/viewmodels"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
@@ -15,17 +19,33 @@ var baseStyle = lipgloss.NewStyle().
 	BorderForeground(lipgloss.Color("240"))
 
 type Model struct {
-	store    store.Store
-	mealName store.MealType
-	mealData store.Foods
-	style    lipgloss.Style
-	Table    table.Model
-	Keys     KeyMap
+	store       store.Store
+	mealName    store.MealType
+	style       lipgloss.Style
+	Table       table.Model
+	Keys        KeyMap
+	tableAdapter *adapters.TableAdapter
+	tableConfig  *config.TableConfig
 }
 
-func (m *Model) SyncRows() {
-	meals, _ := m.store.FoodStore.GetLogs(m.mealName)
-	m.Table.SetRows(meals.TableRowsFor())
+func (m *Model) SyncRows(date time.Time) {
+	meals, err := m.store.FoodStore.GetLogs(m.mealName, date)
+	if err != nil {
+		// Handle error appropriately - for now, just set empty rows
+		m.Table.SetRows([]table.Row{})
+		return
+	}
+
+	// Convert domain models to view models
+	viewModels := viewmodels.NewFoodLogViewModels(meals)
+
+	// Create summary view model
+	summary := viewmodels.NewNutritionSummaryViewModel(meals)
+
+	// Convert to table rows using adapter
+	rows := m.tableAdapter.FoodLogToRowsWithSummary(viewModels, summary)
+
+	m.Table.SetRows(rows)
 }
 
 func (m Model) Init() tea.Cmd {
@@ -83,10 +103,17 @@ func (m Model) View() string {
 
 // New creates a new model with default settings.
 func New(mealName store.MealType, st store.Store) Model {
+	// Initialize adapters and config
+	tableAdapter := adapters.NewTableAdapter()
+	tableConfig := config.NewTableConfig()
+
+	// Create table with columns from config
 	t := table.New(
-		table.WithColumns(columns),
+		table.WithColumns(tableConfig.FoodLogColumns()),
 		table.WithHeight(7),
 	)
+
+	// Set up table styles
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderForeground(lipgloss.Color("240")).
@@ -99,14 +126,17 @@ func New(mealName store.MealType, st store.Store) Model {
 	t.SetStyles(s)
 
 	m := Model{
-		style:    baseStyle,
-		Table:    t,
-		store:    st,
-		Keys:     Keys,
-		mealName: mealName,
+		style:        baseStyle,
+		Table:        t,
+		store:        st,
+		Keys:         Keys,
+		mealName:     mealName,
+		tableAdapter: tableAdapter,
+		tableConfig:  tableConfig,
 	}
-	m.SyncRows()
-	// m.mealData = m.store.MealsStore.Get(m.mealName)
-	// m.Table.SetRows(m.mealData.TableRowsFor())
+
+	// Load initial data with current date
+	m.SyncRows(time.Now())
+
 	return m
 }

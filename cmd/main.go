@@ -2,149 +2,179 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"mydiet/internal/app"
 	"mydiet/internal/logger"
-	"mydiet/internal/models/details"
-	"mydiet/internal/models/form"
-	searchbox "mydiet/internal/models/searchbox"
+	"mydiet/internal/services"
 	"mydiet/internal/store"
 	"mydiet/internal/types"
 	"os"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type model struct {
-	activeView types.View
-	Views      allViews
-	store      store.Store
+// Application is the main application struct
+type Application struct {
+	config      *app.Config
+	coordinator *app.ViewCoordinator
+	service     *services.NutritionService
 }
 
-type allViews struct {
-	Detail details.Model
-	Search searchbox.Model
-	Form   form.Model
+// NewApplication creates a new application instance
+func NewApplication() (*Application, error) {
+	// Load configuration
+	config := app.LoadConfig()
+
+	// Initialize logger
+	logger.Log = logger.NewLogger()
+
+	// Initialize database
+	db, err := initializeDatabase(config.Database)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize database: %w", err)
+	}
+
+	// Initialize store and service
+	store := store.NewStore(db)
+	service := services.NewNutritionService(store)
+
+	// Initialize view coordinator
+	coordinator := app.NewViewCoordinator(service, store)
+
+	return &Application{
+		config:      config,
+		coordinator: coordinator,
+		service:     service,
+	}, nil
 }
 
-func (m model) Init() tea.Cmd {
+// Run starts the application
+func (a *Application) Run() error {
+	// Initialize Bubble Tea logging
+	f, err := tea.LogToFile(a.config.Logging.FilePath, "mydiet")
+	if err != nil {
+		return fmt.Errorf("couldn't open log file: %w", err)
+	}
+	defer f.Close()
+
+	// Create and run the Bubble Tea program
+	model := &AppModel{
+		coordinator: a.coordinator,
+		config:      a.config,
+	}
+
+	program := tea.NewProgram(model)
+	if _, err := program.Run(); err != nil {
+		return fmt.Errorf("application error: %w", err)
+	}
+
 	return nil
 }
 
-// what the application shows
-func (m model) View() string {
-	switch m.activeView {
-	case types.SEARCHBOX:
-		return m.Views.Search.View()
-	case types.FORMVIEW:
-		return m.Views.Form.View()
-	default:
-		return m.Views.Detail.View()
+// Close cleans up application resources
+func (a *Application) Close() error {
+	if logger.LogFile != nil {
+		return logger.LogFile.Close()
 	}
+	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+// AppModel is the main Bubble Tea model
+type AppModel struct {
+	coordinator *app.ViewCoordinator
+	config      *app.Config
+	err         error
+}
+
+func (m *AppModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch {
-		case msg.String() == "ctrl+c":
+		// Global key handlers
+		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
+
 	case types.ViewMessage:
-		m.activeView = msg.NewView
-		switch msg.NewView {
-		case types.DETAILSVIEW:
-			if msg.Msg == "updated" {
-				logger.Log.Info("Updated")
+		// Handle view transitions through coordinator
+		m.coordinator, cmd = m.coordinator.HandleViewMessage(msg)
+		return m, cmd
 
-				err := m.store.FoodStore.InsertLog(m.Views.Form.FoodLog)
-				if err != nil {
-					return m, func() tea.Msg {
-						return types.ErrMsg(err)
-					}
-				}
-				m.Views.Detail.SyncRowsFor()
-				// m.Views.Detail = details.New(m.store)
-			}
-		case types.FORMVIEW:
-			food, ok := msg.Msg.(*store.Food)
-			if !ok {
-				return m, func() tea.Msg {
-					return types.ErrMsg(errors.New("Invalid food "))
-				}
-			}
-			var err error
-			food.Units, err = m.store.FoodStore.GetUnits(food.ID)
-			if err != nil {
-				return m, func() tea.Msg {
-					return types.ErrMsg(errors.New("Invalid food "))
-				}
-			}
-			m.Views.Form = form.New(food)
-			m.activeView = types.FORMVIEW
-
-		case types.SEARCHBOX:
-			if meal, ok := msg.Msg.(store.MealType); ok {
-				m.Views.Search = searchbox.New(meal, m.store)
-			}
-		}
+	case types.ErrMsg:
+		// Handle application errors
+		m.err = error(msg)
+		logger.Log.Error("Application error", "error", m.err)
+		// Could show error in UI here
+		return m, nil
 	}
-	switch m.activeView {
 
+	// Delegate to the active view
+	views := m.coordinator.GetViews()
+	switch m.coordinator.GetActiveView() {
 	case types.SEARCHBOX:
-		m.Views.Search, cmd = m.Views.Search.Update(msg)
-
+		views.Searchbox, cmd = views.Searchbox.Update(msg)
 	case types.FORMVIEW:
-		m.Views.Form, cmd = m.Views.Form.Update(msg)
+		views.Form, cmd = views.Form.Update(msg)
 	default:
-		m.Views.Detail, cmd = m.Views.Detail.Update(msg)
+		views.Details, cmd = views.Details.Update(msg)
 	}
+
 	return m, cmd
 }
-func initialModel() *model {
-	db, err := openDB()
-	if err != nil {
-		logger.Log.Fatal(err)
+
+func (m *AppModel) View() string {
+	// Show error if there's one
+	if m.err != nil {
+		return fmt.Sprintf("Error: %v\n\nPress Ctrl+C to quit", m.err)
 	}
-	s := store.NewStore(db)
-	m := &model{
-		activeView: 1,
-		store:      s,
-		Views: allViews{
-			Detail: details.New(s),
-		},
-	}
-	return m
-}
-func main() {
-	logger.Log = logger.NewLogger()
-	defer logger.LogFile.Close()
-	f, err := tea.LogToFile("debug.log", "help")
-	if err != nil {
-		fmt.Println("Couldn't open a file for logging:", err)
-		os.Exit(1)
-	}
-	defer f.Close() // nolint:errcheck
-	p := tea.NewProgram(initialModel())
-	if _, err := p.Run(); err != nil {
-		fmt.Printf("Alas, there's been an error: %v", err)
-		os.Exit(1)
+
+	// Delegate to active view
+	views := m.coordinator.GetViews()
+	switch m.coordinator.GetActiveView() {
+	case types.SEARCHBOX:
+		return views.Searchbox.View()
+	case types.FORMVIEW:
+		return views.Form.View()
+	default:
+		return views.Details.View()
 	}
 }
-func openDB() (*sqlx.DB, error) {
-	db, err := sqlx.Open("sqlite3", "./nutrition.db")
+
+// initializeDatabase sets up and connects to the database
+func initializeDatabase(config app.DatabaseConfig) (*sqlx.DB, error) {
+	db, err := sqlx.Open("sqlite3", config.Path)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+
+	// Test connection with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), config.ConnectionTimeout)
 	defer cancel()
-	err = db.PingContext(ctx)
-	if err != nil {
+
+	if err := db.PingContext(ctx); err != nil {
 		return nil, err
 	}
+
 	return db, nil
+}
+
+func main() {
+	app, err := NewApplication()
+	if err != nil {
+		fmt.Printf("Failed to initialize application: %v\n", err)
+		os.Exit(1)
+	}
+	defer app.Close()
+
+	if err := app.Run(); err != nil {
+		fmt.Printf("Application failed: %v\n", err)
+		os.Exit(1)
+	}
 }

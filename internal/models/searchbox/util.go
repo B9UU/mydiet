@@ -1,7 +1,6 @@
 package searchbox
 
 import (
-	"mydiet/internal/logger"
 	"mydiet/internal/types"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -9,9 +8,8 @@ import (
 
 func (m Model) GetSuggestions(query string) tea.Cmd {
 	return func() tea.Msg {
-		logger.Log.Info("in")
 
-		foods, err := m.store.FoodStore.Search(query)
+		foods, err := m.Store.FoodStore.Search(query)
 		if err != nil {
 			return types.ErrMsg(err)
 		}

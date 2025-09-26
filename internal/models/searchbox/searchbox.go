@@ -4,6 +4,9 @@ import (
 	"mydiet/internal/logger"
 	"mydiet/internal/store"
 	"mydiet/internal/types"
+	"mydiet/internal/ui/adapters"
+	"mydiet/internal/ui/config"
+	"mydiet/internal/viewmodels"
 	"strconv"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -15,13 +18,15 @@ import (
 )
 
 type Model struct {
-	input    textinput.Model
-	table    table.Model
-	data     store.Foods
-	help     help.Model
-	keys     searchBoxKeys
-	mealType store.MealType
-	store    store.Store
+	input        textinput.Model
+	table        table.Model
+	data         store.Foods
+	help         help.Model
+	keys         searchBoxKeys
+	mealType     store.MealType
+	Store        store.Store
+	tableAdapter *adapters.TableAdapter
+	tableConfig  *config.TableConfig
 }
 
 func (m Model) View() string {
@@ -84,7 +89,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		m.data = store.Foods(msg)
 		logger.Log.Info("Got messages: ", len(m.data))
-		m.table.SetRows(m.data.SearchRows())
+
+		// Convert to view models and then to table rows
+		searchViewModels := viewmodels.NewFoodSearchViewModels(m.data)
+		rows := m.tableAdapter.FoodSearchToRows(searchViewModels)
+		m.table.SetRows(rows)
+
 		return m, nil
 
 	case types.ErrMsg:
@@ -95,12 +105,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, cmd
 }
 func New(mType store.MealType, s store.Store) Model {
+	// Initialize adapters and config
+	tableAdapter := adapters.NewTableAdapter()
+	tableConfig := config.NewTableConfig()
+
+	// Create table with columns from config
 	t := table.New(
-		table.WithColumns([]table.Column{
-			{Title: "Id", Width: 0},
-			{Title: "Name", Width: 10},
-			{Title: "Calories", Width: 10},
-		}),
+		table.WithColumns(tableConfig.FoodSearchColumns()),
 		table.WithHeight(7),
 	)
 
@@ -113,20 +124,29 @@ func New(mType store.MealType, s store.Store) Model {
 	ti.CharLimit = 64
 	ti.Width = 20
 	ti.Focus()
+
 	m := Model{
-		table:    t,
-		input:    ti,
-		help:     help.New(),
-		keys:     keys,
-		mealType: mType,
-		store:    s,
+		table:        t,
+		input:        ti,
+		help:         help.New(),
+		keys:         keys,
+		Store:        s,
+		mealType:     mType,
+		tableAdapter: tableAdapter,
+		tableConfig:  tableConfig,
 	}
-	f, err := m.store.FoodStore.GetAll("")
+
+	// Load initial data and convert to view models
+	f, err := m.Store.FoodStore.GetAll("")
 	if err != nil {
-		logger.Log.Error(err)
+		logger.Log.Info(err)
+		panic(err)
 	}
+
 	m.data = f
-	m.table.SetRows(m.data.SearchRows())
+	searchViewModels := viewmodels.NewFoodSearchViewModels(f)
+	rows := m.tableAdapter.FoodSearchToRows(searchViewModels)
+	m.table.SetRows(rows)
 
 	return m
 }

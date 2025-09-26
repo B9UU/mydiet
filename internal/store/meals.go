@@ -8,11 +8,10 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 )
 
-// TODO: maybe food log rather than meals
+// Food log operations for meal tracking
 
-func (s FoodStore) GetLogs(meal MealType) (Foods, error) {
-
-	stmt := ` SELECT 
+func (s FoodStore) GetLogs(meal MealType, date time.Time) (Foods, error) {
+	stmt := ` SELECT
     fl.id as log_id,
     f.name,
     fl.meal,
@@ -26,47 +25,39 @@ func (s FoodStore) GetLogs(meal MealType) (Foods, error) {
     f.fiber * (fl.quantity * fu.size_in_grams / 100.0) AS fiber,
     f.sugar * (fl.quantity * fu.size_in_grams / 100.0) AS sugar,
     f.sodium * (fl.quantity * fu.size_in_grams / 100.0) AS sodium
-FROM 
+FROM
     food_logs fl
-JOIN 
+JOIN
     foods f ON fl.food_id = f.id
-JOIN 
+JOIN
     food_units fu ON fl.food_unit_id = fu.id
-WHERE 
-    fl.user_id = ? AND fl.meal = ? COLLATE NOCASE`
+WHERE
+    fl.user_id = ?
+    AND fl.meal = ? COLLATE NOCASE
+    AND DATE(fl.timestamp) = DATE(?)`
 
 	userID := 1
 
-	args := []any{userID, strings.ToLower(string(meal))}
+	// Format date to ensure consistent comparison
+	dateStr := date.Format("2006-01-02")
+
+	args := []any{userID, strings.ToLower(string(meal)), dateStr}
 	foods := Foods{}
-	logger.Log.Info(len(foods), "from store", args)
+	logger.Log.Info("Getting logs for", "meal", meal, "date", dateStr, "user", userID)
 	err := s.DB.Select(&foods, stmt, args...)
 	if err != nil {
-		logger.Log.Error(err)
+		logger.Log.Error("Error getting logs", "error", err)
 		return Foods{}, err
 	}
 
+	logger.Log.Info("Found logs", "count", len(foods))
 	return foods, nil
 }
 
+// Delete removes a food log entry (implementation pending)
 func (s FoodStore) Delete(meal MealType, row table.Row) Foods {
+	// Implementation to be added when delete functionality is required
 	return Foods{}
-	// id, err := strconv.Atoi(row[0])
-	// if err != nil {
-	// 	logger.Log.Fatal("Unable to parse id Err: %v", err)
-	// }
-	//
-	// meals := allMeals[meal]
-	// newMeals := make(Foods, 0, len(meals))
-	//
-	// for _, m := range meals {
-	// 	if m.ID != id {
-	// 		newMeals = append(newMeals, m)
-	// 	}
-	// }
-	//
-	// allMeals[meal] = newMeals
-	// return newMeals
 }
 
 func (f FoodStore) InsertLog(fl LoggingFood) error {

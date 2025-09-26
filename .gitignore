@@ -1,0 +1,30 @@
+# Binaries for programs and plugins
+mydiet
+mydiet.exe
+mydiet_*
+
+# Log files
+*.log
+debug.log
+
+# Database files (optional - uncomment if you want to exclude DB)
+# nutrition.db
+
+# Development files
+.claude/
+.todo.md
+CLAUDE.md
+
+# Temporary files
+.DS_Store
+.vscode/
+.idea/
+
+# Go build cache
+.cache/
+
+# OS generated files
+Thumbs.db
+
+
+

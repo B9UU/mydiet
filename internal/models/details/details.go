@@ -5,6 +5,7 @@ import (
 	tablelisting "mydiet/internal/models/table"
 	"mydiet/internal/store"
 	"mydiet/internal/types"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -18,8 +19,9 @@ var AllMeals = []store.MealType{
 type Model struct {
 	style lipgloss.Style
 
-	tables map[store.MealType]tablelisting.Model
-	active store.MealType
+	tables      map[store.MealType]tablelisting.Model
+	active      store.MealType
+	currentDate time.Time  // Track current date for change detection
 
 	date date.Model
 	help help.Model
@@ -27,9 +29,20 @@ type Model struct {
 }
 
 func (m *Model) SyncRowsFor() {
+	selectedDate := m.date.Date.Time
 	t := m.tables[m.active]
-	t.SyncRows()
+	t.SyncRows(selectedDate)
 	m.tables[m.active] = t
+}
+
+// SyncAllTables updates all tables with data for the selected date
+func (m *Model) SyncAllTables() {
+	selectedDate := m.date.Date.Time
+	for _, meal := range AllMeals {
+		t := m.tables[meal]
+		t.SyncRows(selectedDate)
+		m.tables[meal] = t
+	}
 }
 func (m Model) View() string {
 
@@ -83,7 +96,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		if m.date.Date.Selected {
+			oldDate := m.currentDate
 			m.date, cmd = m.date.Update(msg)
+			newDate := m.date.Date.Time
+
+			// If date changed, sync all tables with new date
+			if !oldDate.Equal(newDate.Truncate(24*time.Hour)) {
+				m.currentDate = newDate.Truncate(24*time.Hour)
+				m.SyncAllTables()
+			}
+
 			return m, cmd
 		}
 		switch {
@@ -111,16 +133,17 @@ func New(s store.Store) Model {
 	for _, k := range AllMeals {
 		tables[k] = tablelisting.New(k, s)
 	}
+	now := time.Now().Truncate(24*time.Hour)
 	m := Model{
 		style: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("36")).
 			Align(lipgloss.Center),
-		tables: tables,
-		help:   help.New(),
-		keys:   keys,
-
-		date: date.New(),
+		tables:      tables,
+		help:        help.New(),
+		keys:        keys,
+		currentDate: now,
+		date:        date.New(),
 	}
 	return m.SetActive(store.Breakfast)
 
